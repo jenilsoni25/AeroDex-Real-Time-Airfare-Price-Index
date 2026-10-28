@@ -1,186 +1,533 @@
-# AeroDex: Real-Time Airfare Price Index (APIx)
-> **"Development of a Real-time Airfare Price Index for India through Automated Web Scraping of Airline and Online Travel Aggregator Portals for Augmentation of the Consumer Price Index (CPI)"**
+<div align="center">
 
-[![Python Version](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/)
-[![Playwright](https://img.shields.io/badge/Playwright-Multi--Source%20Headless-orange.svg)](https://playwright.dev/)
-[![Compliance](https://img.shields.io/badge/Robots.txt-Ethical%20Compliance-brightgreen.svg)](#ethical-scraping--compliance)
-[![Scikit-Learn](https://img.shields.io/badge/ML-RandomForestNowcaster-green.svg)](https://scikit-learn.org/)
-[![Gemini](https://img.shields.io/badge/LLM-Gemini%203.6%20Flash-purple.svg)](https://ai.google.dev/)
-[![Status](https://img.shields.io/badge/Status-Working%20Prototype-blue.svg)](#)
+# AeroDex — Real-Time Airfare Price Index
 
----
+### A data-driven prototype for monitoring domestic airfare movements in India
 
-## Executive Summary
+**Project theme:** Development of a real-time airfare price index through automated collection of airline and online travel portal fares, with analytical links to the Consumer Price Index (CPI).
 
-In India, the **Ministry of Statistics and Programme Implementation (MoSPI)** publishes the national Consumer Price Index (CPI) with a 30 to 45-day lag due to conventional manual field survey cycles. In the civil aviation sector, airline pricing algorithms adjust tariffs continuously. By the time monetary authorities (RBI MPC) review monthly inflation prints, volatile ticket price fluctuations have already propagated through the economy.
+[![Python](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Playwright](https://img.shields.io/badge/Browser%20Automation-Playwright-2EAD33?logo=playwright&logoColor=white)](https://playwright.dev/)
+[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Scikit-learn](https://img.shields.io/badge/ML-Scikit--learn-F7931E?logo=scikit-learn&logoColor=white)](https://scikit-learn.org/)
+[![Status](https://img.shields.io/badge/Status-Working%20Prototype-blue)](#project-status)
 
-**The Solution:** AeroDex is a working prototype delivering a real-time **National Airfare Price Index (APIx)** for India. The platform pairs ethical multi-source web extraction with official DGCA passenger census weights (136 Million annual flyers across 786 routes) to compute transparent Laspeyres and Paasche airfare price indices.
+</div>
 
 ---
 
-## Key Engineering Pillars
+## Contents
 
-### 1. Ethical Multi-Source Web Scraping
-- **Named Indian OTAs & Direct Carrier Portals**: Live concurrent Playwright extraction across **Google Flights**, **EaseMyTrip** (premier Indian OTA named in PS), **Cleartrip**, and **SpiceJet** (direct carrier).
-- **Robots.txt Verification**: Automated checking via `urllib.robotparser` (`RobotGuard`) before initiating requests to target domains (e.g., verifying `/flights/results` is permitted on Cleartrip, respecting `/flights/search` Disallow on Ixigo).
-- **Polite Crawl Delays & Backoff**: Enforces per-domain rate limiting with exponential backoff on HTTP 429/503 responses.
-- **Live Compliance & Governance API**: Real-time inspection of robots.txt status, anti-bot defenses, and full 11-source catalog via `GET /api/v1/compliance/sources` and `GET /api/v1/compliance/robots`.
+- [What is AeroDex?](#what-is-aerodex)
+- [The Problem](#the-problem)
+- [Project Objectives](#project-objectives)
+- [How It Works](#how-it-works)
+- [Key Features](#key-features)
+- [Index Methodology](#index-methodology)
+- [Architecture](#architecture)
+- [Technology Stack](#technology-stack)
+- [Repository Structure](#repository-structure)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [API Overview](#api-overview)
+- [Data Sources and Responsible Collection](#data-sources-and-responsible-collection)
+- [Data Quality and Limitations](#data-quality-and-limitations)
+- [Testing](#testing)
+- [Roadmap](#roadmap)
+- [Project Status](#project-status)
+- [Author](#author)
+- [Disclaimer](#disclaimer)
 
-### 2. Dual-Layer Resilient Architecture & Honest Provenance
-- **Layer A (Live Extraction)**: Extracts live flight quotes (fares, flight numbers, aircraft type, departure/arrival schedules) across 25 high-traffic corridors and 16 airport hubs.
-- **Layer B (Continuous Fallback)**: If a target portal is rate-limited or in offline environments, the system seamlessly transitions to a calibrated baseline derived from official DGCA Form-A traffic census data and empirical surge multipliers.
-- **Honest Provenance Badges**: Every query and individual flight card clearly indicates its provenance:
-  - `🟢 Live Web Scraped (Google Flights, EaseMyTrip, Cleartrip & SpiceJet)` when live data is extracted.
-  - `⚠️ Simulated / Benchmark Estimate (Fallback)` with an informative alert banner when fallback estimates are active.
+## What is AeroDex?
 
-### 3. Cloud-Ready & Low-Memory Playwright Deployment
-- Headless Chromium runs with resource-constrained cloud flags (`--no-sandbox`, `--disable-dev-shm-usage`, `--disable-gpu`).
-- Request route interception aborts heavy assets (images, fonts, media) saving 70%+ bandwidth and keeping RAM usage <120MB.
-- **Decoupled Ingestion Worker** (`worker_scraper.py`): Standalone background process that can run independently or on a cron schedule, insulating the FastAPI web server from browser load.
+**AeroDex** is a software and data-analysis prototype designed to turn individual flight-fare observations into useful indicators of airfare movement in India.
 
-### 4. Econometric Rigor & Macroeconomic Alignment
-- **DGCA Census Weighting**: Weights tariffs by actual airline market shares (IndiGo ~62%, Air India ~15%, Akasa ~5%, SpiceJet ~4%) and route passenger volumes.
-- **Fare Deconstruction**: Breaks down total tariffs into Base Fare, Fuel Surcharge (YQ), Airport Fees (UDF/PSF), and GST (5%).
-- **MoSPI CPI Integration**: Quantifies exact basis point impact on India's Headline Consumer Price Index (COICOP Sub-class 07.3.3, 0.077% basket weight).
+Airfares can change by route, airline, departure date, booking lead time, season, and availability. A single ticket price does not explain whether prices are generally rising or falling. AeroDex explores a more consistent approach: collect fare observations, validate and store them, aggregate comparable fares, and calculate route-level and national-level indicators.
 
-### 5. AI Econometric Situation Room & Differentiating Features
-- **Data Integrity Governance Engine** (`integrity_engine.py`): Calculates real-time composite data quality scores (0–100%, Grade A+) evaluating mathematical fare reconciliation ($Base + YQ + Fees + GST = Total$), Tukey 1.5× IQR outlier trimming, source diversity, and temporal freshness.
-- **Historical Aviation Crisis Simulation Studio** (`shock_replay.py`): Calibrated stylized stress-testing simulator modeling historical supply shocks (May 2023 Go First Grounding, April 2019 Jet Airways Collapse, June 2022 ATF Fuel Spike) showing Laspeyres substitution bias vs Superlative Fisher index trajectories.
-- **Autonomous Executive Briefings**: AI policy memos in English and formal Hindi (**शुद्ध हिन्दी**) powered by **Gemini 3.6 Flash** (`gemini-3.6-flash`) with deterministic offline fallback.
+The project combines a fare-data pipeline with an index-calculation engine, an analytical dashboard/API, data-integrity checks, and optional forecasting and AI-generated summaries.
 
----
+> **Important:** AeroDex is an independent prototype. It is not an official MoSPI or DGCA system, and its outputs should not be interpreted as an official government-published index.
+
+## The Problem
+
+Flight prices are dynamic, while economic indicators are generally compiled and published on a different schedule. Researchers and analysts may therefore find it difficult to compare changing ticket prices across routes and airlines using isolated observations alone.
+
+AeroDex investigates the following question:
+
+**Can automated fare collection and transparent index methodology help summarise domestic airfare movements in a consistent, repeatable way?**
+
+The project also explores whether airfare indicators can be compared with Consumer Price Index (CPI) data and other aviation-related signals. Such comparisons can provide context, but do not by themselves establish causation or an official contribution to inflation.
+
+## Project Objectives
+
+- Collect flight-fare observations from supported airline and online travel sources.
+- Store observations in a structured database for analysis and auditing.
+- Standardise fare components where source data makes that possible.
+- Compare fares across routes, airlines, travel dates, and booking windows.
+- Calculate route-level and national-level airfare indicators.
+- Compare airfare trends with an available CPI baseline.
+- Examine data quality, unusual price movements, and market concentration.
+- Explore forecasting, scenario analysis, and readable analytical briefings.
+- Clearly distinguish collected live observations from fallback or benchmark estimates.
+
+## How It Works
+
+```text
+Airline / Travel-Portal Sources
+             |
+             v
+     Fare Collection Layer
+       (browser automation)
+             |
+             v
+   Validation & Data Integrity
+             |
+             v
+        SQLite Database
+             |
+             v
+   Fare Normalisation and
+       Route Aggregation
+             |
+             v
+    Route / National Index
+             |
+      +------+------+
+      |             |
+      v             v
+ Trend Analysis   Dashboard / API
+      |
+      v
+ CPI Comparison, Forecasting
+ and Scenario Exploration
+```
+
+### Typical workflow
+
+1. **Collect:** The scraper attempts to obtain fare and itinerary details from configured sources.
+2. **Validate:** Records are checked for required fields, plausible values, duplicates, fare consistency, and other quality concerns.
+3. **Store:** Observations and related baseline data are stored in SQLite.
+4. **Aggregate:** Comparable observations are grouped by route, carrier, travel date, and other available dimensions.
+5. **Calculate:** The index engine calculates fare and index indicators using the configured methodology.
+6. **Present:** The application exposes selected outputs through its dashboard and API.
+7. **Interpret:** Analytical components support trend comparisons, quality assessment, and optional scenario or forecasting workflows.
+
+## Key Features
+
+### 1. Multi-source fare collection
+
+The existing project documentation describes integrations or collection workflows involving sources such as Google Flights, EaseMyTrip, Cleartrip, and SpiceJet. Source availability and extraction success can vary over time due to website changes, access controls, location, and rate limits.
+
+The data model supports fields such as carrier, flight number, origin, destination, departure date and time, arrival time, duration, stops, fare components, source portal, and collection timestamp.
+
+### 2. Live data and fallback transparency
+
+The design distinguishes between:
+- **Live-collected observations**, when a configured source returns usable fare data.
+- **Fallback or benchmark estimates**, when live collection is unavailable and a fallback path is used.
+
+These categories are not interchangeable. A fallback estimate must not be presented as a fare observed live from a website. Always check the source/provenance indicator for a particular result.
+
+### 3. Fare decomposition
+
+Where the source provides the relevant fields, a fare may be represented using components such as:
+- Base fare
+- Fuel surcharge (YQ)
+- Airport fees (for example, UDF/PSF)
+- Goods and Services Tax (GST)
+- Total fare
+
+Not every source exposes the same breakdown. The application should reconcile components only when the available data supports that calculation.
+
+### 4. Route and national indicators
+
+The index engine includes route-level and national-level indicator concepts. These are intended to summarise movements across observations rather than simply display one ticket price.
+
+### 5. Data integrity checks
+
+The project includes a data-integrity module intended to evaluate aspects such as fare-component reconciliation, unusual observations, source diversity, and freshness. A quality score is a diagnostic measure; it is not proof that every source record is correct.
+
+### 6. CPI baseline comparison
+
+A CPI baseline is stored for analysis alongside airfare observations. This supports comparison and exploratory analysis; it does not automatically establish that a particular airfare change caused a change in headline CPI.
+
+### 7. Forecasting and scenario analysis
+
+The codebase includes forecasting and aviation-shock scenario components. Forecasts and simulated scenarios are analytical outputs, not guarantees of future prices or direct measurements of historical market outcomes.
+
+### 8. Optional AI-generated summaries
+
+The project supports optional Gemini integration for natural-language summaries. A deterministic/offline path is described in the project configuration for environments without an API key. AI-generated text should be checked against the underlying data before being used for decisions.
+
+## Index Methodology
+
+The formulas below explain common index concepts relevant to AeroDex. **The exact implementation, route weights, base period, and missing-data rules must be confirmed in the corresponding source code and methodology documentation before treating any formula here as a complete specification.**
+
+### 1. Total fare
+
+Where all components are separately available and are not already included in one another:
+
+\[
+F = B + YQ + A + T
+\]
+
+Where:
+- \(F\) = total fare
+- \(B\) = base fare
+- \(YQ\) = fuel surcharge
+- \(A\) = applicable airport fees
+- \(T\) = applicable taxes
+
+Care is needed to avoid double-counting components that a source already includes in its quoted total.
+
+### 2. Weighted average fare
+
+\[
+\bar{F}_w = \frac{\sum_{i=1}^{n} w_i F_i}{\sum_{i=1}^{n} w_i}
+\]
+
+Here, \(F_i\) is an observed fare and \(w_i\) is its assigned weight. A higher weight means that an observation contributes more to the average. The meaning of the result depends on how the project defines those weights.
+
+### 3. Fixed-base price index
+
+A basic fixed-base index is:
+
+\[
+I_t = \frac{P_t}{P_0}\times 100
+\]
+
+Where:
+- \(P_t\) = comparable price in the current period
+- \(P_0\) = comparable price in the chosen base period
+
+For example, if the base-period fare is ₹5,000 and the comparable current fare is ₹5,500, the index is 110. This indicates a 10% increase relative to the base period.
+
+### 4. Percentage change
+
+\[
+\%\Delta P = \frac{P_t-P_{t-1}}{P_{t-1}}\times100
+\]
+
+For example, a change from ₹4,000 to ₹4,400 is an increase of 10%.
+
+### 5. Weighted national indicator
+
+A general weighted aggregation of route indices can be written as:
+
+\[
+I_{\text{national},t} =
+\frac{\sum_{r=1}^{R} w_r I_{r,t}}{\sum_{r=1}^{R} w_r}
+\]
+
+Where \(I_{r,t}\) is the index for route \(r\), and \(w_r\) is that route's weight. A defensible national indicator requires documented weights, consistent route definitions, a base period, and rules for routes with missing observations.
+
+### 6. Laspeyres, Paasche, and Fisher indices
+
+The existing project documentation describes Laspeyres and Paasche index concepts and a Fisher-index comparison in its scenario-analysis component. In general:
+
+\[
+P_L = \frac{\sum p_t q_0}{\sum p_0 q_0}\times100
+\]
+
+\[
+P_P = \frac{\sum p_t q_t}{\sum p_0 q_t}\times100
+\]
+
+\[
+P_F = \sqrt{P_L P_P}
+\]
+
+Here \(p_0\) and \(p_t\) represent base-period and current-period prices, while \(q_0\) and \(q_t\) represent base-period and current-period quantities or weights. These formulas illustrate the standard concepts; verify the project's actual implementation and available quantity/weight data before claiming that a particular result is calculated exactly this way.
+
+## Architecture
+
+The repository contains a web-facing application and a fare-processing area. Based on the current project files, important components include:
+
+| Component | Role |
+|---|---|
+| `airfare_index/live_fetcher/scraper.py` | Fare collection workflow |
+| `airfare_index/live_fetcher/robot_guard.py` | Robots.txt and scraping-policy checks |
+| `airfare_index/live_fetcher/worker_scraper.py` | Separate/background collection workflow |
+| `airfare_index/live_fetcher/index_engine.py` | Index-calculation functionality |
+| `airfare_index/live_fetcher/integrity_engine.py` | Data-quality and integrity checks |
+| `airfare_index/live_fetcher/forecasting_engine.py` | Forecasting functionality |
+| `airfare_index/live_fetcher/shock_replay.py` | Scenario/stress-test functionality |
+| `airfare_index/live_fetcher/live_calamity_tracker.py` | External event/weather-related monitoring component |
+| `airfare_index/live_fetcher/ai_engine.py` | Optional AI summary and fallback logic |
+| `airfare_index/live_fetcher/static/index.html` | Web dashboard interface |
+| `airfare_index/airfare_index.db` | SQLite database containing fare and CPI baseline tables |
+| `METHODOLOGY.md` | Project methodology documentation |
+| `DEMO_SCRIPT.md` | Demonstration walkthrough |
+
+File names and responsibilities may evolve as the project changes. Consult the code for the current runtime behaviour.
+
+## Technology Stack
+
+| Technology | Use in the project |
+|---|---|
+| **Python** | Application logic, data processing, and index calculations |
+| **Playwright** | Browser automation for supported fare-collection workflows |
+| **SQLite** | Local structured database |
+| **Scikit-learn** | Machine-learning/forecasting components |
+| **Gemini API** | Optional natural-language summaries |
+| **HTML, CSS, JavaScript** | Dashboard/front-end interface |
+| **Git and GitHub** | Version control and project hosting |
 
 ## Repository Structure
 
-```
-SIH/
-├── airfare_index/                       # Core Production Engine & Dashboard
-│   ├── live_fetcher/                    # Real-time data pipeline & web server
-│   │   ├── static/index.html            # Interactive executive dashboard
-│   │   ├── server.py                    # REST API backend & static file server
-│   │   ├── scraper.py                   # Multi-source concurrent Playwright scraper
-│   │   ├── robot_guard.py               # Ethical robots.txt checker & rate limiter
-│   │   ├── proxy_rotator.py             # Multi-node rotating proxy & anti-bot manager
-│   │   ├── integrity_engine.py          # Real-time econometric data integrity engine
-│   │   ├── shock_replay.py              # Historical aviation shock replay simulator
-│   │   ├── worker_scraper.py            # Decoupled background ingestion worker
-│   │   ├── index_engine.py              # Laspeyres & Paasche index calculation engine
-│   │   ├── forecasting_engine.py        # ML Nowcasting engine & METAR telemetry
-│   │   ├── live_calamity_tracker.py     # UN GDACS & weather calamity shock monitor
-│   │   ├── ai_engine.py                 # Gemini 3.6 Flash Situation Room & offline engine
-│   │   ├── database.py                  # SQLite schema & microdata audit logger
-│   │   ├── run_server.bat               # 1-Click launcher
-│   │   └── .env.example                 # Environment configuration template
-│   ├── index_engine.py                  # Offline econometric index validator
-│   ├── airfare_predictor.joblib         # Pre-trained Random Forest model
-│   ├── requirements.txt                 # Python dependencies
-│   ├── atf_fuel_prices.csv              # Aviation Turbine Fuel (ATF) historical benchmarks
-│   ├── carrier_market_shares.csv        # DGCA official carrier market shares
-│   ├── dgca_citypair_weights.csv        # DGCA census route weights (786 routes)
-│   └── official_mospi_cpi_airfare.csv   # Historical MoSPI CPI backtest series
-├── data/                                # Official Census & Traffic Datasets
-│   ├── atf_fuel_prices.csv              # ATF spot benchmarks
-│   ├── carrier_market_shares.csv        # Airline market distribution
-│   ├── dgca_citypair_weights.csv        # Route census weights
-│   └── official_mospi_cpi_airfare.csv   # MoSPI transport series
-├── scratch/                             # Test harnesses and verification scripts
-├── DEMO_SCRIPT.md                       # 5-Minute Product Demonstration Script
-└── README.md                            # Comprehensive system documentation
+The project may change as development continues. The main areas and files include:
+
+```text
+AeroDex-Real-Time-Airfare-Price-Index/
+├── .github/                         # GitHub-related configuration
+├── airfare_index/
+│   ├── live_fetcher/
+│   │   ├── static/
+│   │   │   └── index.html           # Dashboard interface
+│   │   ├── ai_engine.py             # AI summary logic
+│   │   ├── forecasting_engine.py    # Forecasting
+│   │   ├── integrity_engine.py      # Data-quality checks
+│   │   ├── index_engine.py          # Index calculations
+│   │   ├── live_calamity_tracker.py # Event monitoring
+│   │   ├── proxy_rotator.py         # Network/proxy support
+│   │   ├── robot_guard.py           # Robots.txt checks
+│   │   ├── scraper.py               # Fare collection
+│   │   ├── shock_replay.py          # Scenario analysis
+│   │   └── worker_scraper.py        # Background collection
+│   ├── README.md
+│   └── airfare_index.db             # SQLite data store
+├── Documentation/                   # Project report/documentation
+├── tests/                            # Automated tests
+├── app.py                            # Application entry point (check configuration)
+├── main.py                           # Application entry point (check configuration)
+├── DEMO_SCRIPT.md                    # Demo guide
+├── METHODOLOGY.md                    # Methodology details
+├── requirements.txt                  # Python dependencies
+├── render.yaml                       # Deployment configuration
+├── railway.json                      # Deployment configuration
+├── runtime.txt                       # Runtime configuration
+└── README.md                          # Project overview
 ```
 
----
+## Getting Started
 
-## Quick Start Guide
+### Prerequisites
 
-### 1. Prerequisites
-- Python 3.10+ (Python 3.12 recommended)
-- Chromium binary for Playwright
+- Git
+- Python version compatible with the installed dependencies (the project documentation targets Python 3.12+)
+- Internet access for dependency installation and live collection
+- Playwright browser binaries if using browser-based collection
+- A Gemini API key only if you want to use the optional Gemini functionality
 
-### 2. Installation
+### 1. Clone the repository
+
 ```bash
-# Clone the repository
-git clone https://github.com/Manan-013/AirfarePriceIndex_SIH.git
-cd AirfarePriceIndex_SIH
+git clone https://github.com/jenilsoni25/AeroDex-Real-Time-Airfare-Price-Index.git
+cd AeroDex-Real-Time-Airfare-Price-Index
+```
 
-# Install Python dependencies
-pip install -r airfare_index/requirements.txt
+### 2. Create and activate a virtual environment
 
-# Install Playwright browser binaries
+**Windows PowerShell:**
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+```
+
+**macOS/Linux:**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+Start with the root dependency file if it exists and matches your current setup:
+
+```bash
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+If the runtime component maintains its own dependency file, install that file instead or as instructed by the component's README.
+
+### 4. Install Playwright Chromium
+
+If browser automation is required:
+
+```bash
 python -m playwright install chromium
 ```
 
-### 3. Environment Configuration (Optional)
-```bash
-cp airfare_index/.env.example airfare_index/.env
-# Add your GEMINI_API_KEY if you wish to use live Gemini 3.6 Flash briefings.
-# If omitted, the system runs on the built-in deterministic local econometric engine.
+On Linux/cloud hosts, additional system dependencies may be required. See the official [Playwright documentation](https://playwright.dev/python/docs/intro).
+
+### 5. Configure environment variables
+
+Review `airfare_index/.env.example`. If the application expects a local `.env` file in that directory, create it with:
+
+**PowerShell:**
+
+```powershell
+Copy-Item .\airfare_index\.env.example .\airfare_index\.env
 ```
 
-### 4. Running the Application
+Set `GEMINI_API_KEY` only if you intend to use Gemini features. Keep real credentials in your local environment or hosting provider's secret settings. **Never commit a real `.env` file or API key.**
+
+### 6. Run the application
+
+The repository contains multiple entry-point files and deployment configurations, so the correct command depends on the configured application entry point.
+
+The existing project documentation describes a server workflow similar to:
+
 ```bash
-# Option A: Run the unified server (Web Dashboard + In-Memory Scraper)
 cd airfare_index/live_fetcher
 python server.py
+```
 
-# Option B: Run the decoupled background worker (for scheduled cloud execution)
+If `server.py` is absent in your checked-out version, use the current entry point documented in that directory or the deployment configuration. Do not assume that every command shown in an older project version applies to the latest version.
+
+When the server starts successfully, open the local address and port printed in the terminal (the project documentation describes port `8000` as the default).
+
+### 7. Run the background scraper (optional)
+
+The project documentation describes a worker interface similar to:
+
+```bash
 python worker_scraper.py --routes DEL-BOM,DEL-BLR,BOM-BLR --interval 300
 ```
-Open **http://localhost:8000** in your browser.
 
----
+Run this from the directory containing `worker_scraper.py`, and verify the supported command-line options in the current version before use. Scraping may be restricted or unavailable for particular sources.
 
-## Ethical Scraping & Compliance
+## Configuration
 
-The platform implements ethical scraping safeguards:
-1. **Robots.txt Pre-Request Verification & Enforcement Gate**: Every candidate scrape target URL is evaluated against RFC 9309 rules before initiating network requests. If an endpoint is disallowed, extraction is strictly aborted before launching browser automation, falling back safely to warehouse microdata.
-   - *Active Verification*: Checks domain directives prior to dispatching traffic;
-   - *Strict Abort*: Disallowed endpoints immediately halt Playwright/HTTP execution and log the restriction.
-2. **Polite Crawl Cadence**: Default 3.0s delay between requests to the same domain.
-3. **Adaptive Backoff**: Automatically escalates delay up to 8x upon encountering HTTP 429 (Too Many Requests) or 503 (Service Unavailable).
-4. **Verifiable Audit Log**: Evaluators can verify compliance status at any time via:
-   ```bash
-   curl http://localhost:8000/api/v1/compliance/robots
-   ```
+The example environment file documents these settings:
 
----
+| Variable | Purpose |
+|---|---|
+| `GEMINI_API_KEY` | Optional credential for Gemini features |
+| `GEMINI_MODEL` | Configured model identifier |
+| `PORT` | Server port (example default: `8000`) |
+| `ENABLE_CLOUD_PLAYWRIGHT` | Controls configured cloud Playwright behaviour |
 
-## Automated Test Suite
+Environment-variable support depends on the active entry point. Keep the example file populated only with placeholders and safe defaults.
 
-AeroDex includes a comprehensive automated test suite covering Laspeyres index mathematics, carrier volume weighting, statutory tax decomposition (Base + Fuel YQ + Airport UDF + GST = Total), statistical outlier trimming (2.5x median rule), MakeMyTrip parsing, and live REST endpoints.
+## API Overview
 
-Run the test suite out-of-the-box:
+The existing project README documents the following API route families. **Confirm the routes against the running server or route definitions in the current code**, as endpoint availability may change by version or configuration.
+
+| Endpoint | Method | Intended purpose |
+|---|---:|---|
+| `/api/v1/search` | `POST` | Flight search / fare retrieval |
+| `/api/v1/integrity/score` | `GET` | Data-integrity score |
+| `/api/v1/shocks/list` | `GET` | Available scenario catalog |
+| `/api/v1/shocks/replay` | `GET` | Scenario replay |
+| `/api/v1/compliance/sources` | `GET` | Configured source catalog |
+| `/api/v1/compliance/robots` | `GET` | Robots.txt compliance status |
+| `/api/v1/live/pulse` | `GET` | Current index pulse |
+| `/api/v1/index/national` | `GET` | National index indicator |
+| `/api/v1/index/weekly` | `GET` | Weekly aggregation timeline |
+| `/api/v1/macro/timeline` | `GET` | CPI/aviation-related comparison |
+| `/api/v1/routes/weights` | `GET` | Route-weight information |
+| `/api/v1/db/quotes` | `GET` | Recent stored fare observations |
+| `/api/v1/export/daily` | `GET` | Daily export |
+| `/api/v1/export/weekly` | `GET` | Weekly export |
+| `/api/v1/export/quotes` | `GET` | Fare-observation export |
+| `/api/v1/ai/summary` | `GET` | Optional AI-generated summary |
+
+For example, once the server is running locally, an endpoint can be tested with a browser or an HTTP client. Use the actual host, port, and routes configured in your version.
+
+## Data Sources and Responsible Collection
+
+The existing project documentation names Google Flights, EaseMyTrip, Cleartrip, and SpiceJet among its intended or configured collection sources. Live availability and extraction success are not guaranteed. A source may change its site, block automated requests, require additional verification, or disallow particular automated access.
+
+Responsible collection should include:
+
+- Review the applicable terms of service and access policies for each source.
+- Check and respect robots.txt instructions where applicable.
+- Use reasonable request rates and backoff after rate limits or service errors.
+- Avoid bypassing authentication, CAPTCHAs, paywalls, or other access controls.
+- Record collection timestamps and source provenance.
+- Clearly identify fallback estimates rather than presenting them as live quotes.
+- Prefer official/public datasets for weights and economic baselines, and document their source and reference period.
+
+The project documentation references DGCA-related route/passenger weights and a MoSPI CPI baseline. Before using these in published analysis, document the exact source files, release dates, definitions, coverage, and transformation steps.
+
+## Data Quality and Limitations
+
+AeroDex is a prototype and its results depend on the quality and coverage of the collected data.
+
+- **Coverage bias:** Not all airlines, routes, dates, or booking windows will necessarily be represented equally.
+- **Changing fares:** A fare is a time-specific observation and may change shortly after collection.
+- **Comparability:** Fare inclusions, baggage rules, fare classes, and source presentation may differ.
+- **Missing values:** Missing data can affect route averages and national aggregation.
+- **Outliers:** Statistical outlier rules can reduce the influence of unusual values but may also exclude genuine price shocks.
+- **Index design:** Base-period selection, weights, route entry/exit, and missing-route treatment materially affect results.
+- **CPI interpretation:** An association with CPI is not proof of causation or a verified CPI contribution.
+- **Forecast uncertainty:** Model outputs are estimates and should be evaluated against held-out observations and suitable baselines.
+- **Live source reliability:** Website changes, anti-bot controls, network issues, and policy restrictions can interrupt collection.
+
+Use the index as an exploratory analytical indicator unless and until its methodology and representativeness have been independently validated.
+
+## Testing
+
+The project's existing documentation describes tests for index calculations, fare-component reconciliation, outlier handling, source parsing, and API behaviour. Run the test suite supported by the checked-out version.
+
+A documented command is:
+
 ```bash
 python -m unittest discover tests -v
 ```
-*Result: 31 unit & integration tests passing with 100% success.*
+
+Treat test results from your own environment as authoritative for your version. Tests can verify implemented behaviour, but they do not by themselves validate the representativeness of the data or the economic interpretation of an index.
+
+## Roadmap
+
+Potential future improvements include:
+
+- [ ] Publish a clear, versioned index methodology and base-period definition.
+- [ ] Document the provenance and reference period for each official baseline dataset.
+- [ ] Add reproducible data-quality and index-validation reports.
+- [ ] Evaluate index behaviour against independent benchmarks.
+- [ ] Improve route coverage and treatment of missing observations.
+- [ ] Add monitoring for scraper failures and source changes.
+- [ ] Report forecast errors and uncertainty, not only point estimates.
+- [ ] Provide sample outputs and dashboard screenshots.
+- [ ] Add automated CI checks for tests and code quality.
+
+## Project Status
+
+**Current status: Working prototype / ongoing development.**
+
+Features, source integrations, endpoint availability, and deployment instructions may change. The repository should be treated as a research and engineering project, not a production-grade official statistical system.
+
+## Author
+
+**Jenil Soni**  
+M.Sc. Data Science student, GSFC University, Vadodara, Gujarat, India  
+GitHub: [@jenilsoni25](https://github.com/jenilsoni25)
+
+This project explores the application of data engineering, web automation, statistical index construction, and machine learning to airfare monitoring and economic analysis.
 
 ---
 
-## Key REST API Endpoints
+## Acknowledgements and References
 
-| Endpoint | Method | Description |
-| :--- | :---: | :--- |
-| `/api/v1/search` | `POST` | Live flight search & tariff deconstruction across OTAs |
-| `/api/v1/integrity/score` | `GET` | Real-time Econometric Data Integrity Score (4D composite, SHA-256 seal) |
-| `/api/v1/shocks/list` | `GET` | Historical aviation shock replay scenario catalog |
-| `/api/v1/shocks/replay` | `GET` | Historical shock replay engine (Fisher vs Laspeyres, early detection) |
-| `/api/v1/compliance/proxies` | `GET` | Client fingerprint & header rotation telemetry (direct egress mode) |
-| `/api/v1/compliance/sources` | `GET` | 11-Source Governance Catalog (4 Active Scrapers + 7 Verification Portals) |
-| `/api/v1/compliance/robots` | `GET` | Live robots.txt compliance status and audit log |
-| `/api/v1/live/pulse` | `GET` | High-frequency live pulse of national airfare index |
-| `/api/v1/index/national` | `GET` | Current National Airfare Price Index and CPI impact |
-| `/api/v1/index/weekly` | `GET` | 12-week rolling temporal aggregation timeline JSON |
-| `/api/v1/macro/timeline` | `GET` | 20-month comparison: MoSPI CPI vs ATF Fuel vs Scraper |
-| `/api/v1/routes/weights` | `GET` | Top DGCA passenger volume weights across 786 routes |
-| `/api/v1/db/quotes` | `GET` | Recent microdata quotes from SQLite audit warehouse |
-| `/api/v1/export/daily` | `GET` | Export MoSPI Daily Sector Airfare Bulletin (CSV) |
-| `/api/v1/export/weekly` | `GET` | Export MoSPI Weekly Aggregation Bulletin (CSV) |
-| `/api/v1/export/quotes` | `GET` | Export full microdata quote audit warehouse (CSV) |
-| `/api/v1/ai/summary` | `GET` | Gemini 3.6 Flash Situation Room briefing (English & Hindi) |
+- [Python](https://www.python.org/)
+- [Playwright documentation](https://playwright.dev/python/docs/intro)
+- [SQLite documentation](https://www.sqlite.org/docs.html)
+- [scikit-learn documentation](https://scikit-learn.org/stable/)
+- [Google AI for Developers](https://ai.google.dev/)
+- [MoSPI](https://mospi.gov.in/)
+- [Directorate General of Civil Aviation (DGCA)](https://www.dgca.gov.in/)
+
+The exact datasets and versions used for any reported result should be cited in the accompanying methodology and analysis.
 
 ---
 
-## Methodology & Documentation
+<div align="center">
 
-- For the full econometric, mathematical, and regulatory specification, read [**METHODOLOGY.md**](METHODOLOGY.md).
-- For a step-by-step 5-minute product walkthrough, see [**DEMO_SCRIPT.md**](DEMO_SCRIPT.md).
+**AeroDex — turning fare observations into interpretable airfare indicators.**
+
+</div>
