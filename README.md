@@ -167,46 +167,46 @@ The formulas below explain common index concepts relevant to AeroDex. **The exac
 
 Where all components are separately available and are not already included in one another:
 
-\[
+$$
 F = B + YQ + A + T
-\]
+$$
 
 Where:
-- \(F\) = total fare
-- \(B\) = base fare
-- \(YQ\) = fuel surcharge
-- \(A\) = applicable airport fees
-- \(T\) = applicable taxes
+- $F$ = total fare
+- $B$ = base fare
+- $YQ$ = fuel surcharge
+- $A$ = applicable airport fees
+- $T$ = applicable taxes
 
 Care is needed to avoid double-counting components that a source already includes in its quoted total.
 
 ### 2. Weighted average fare
 
-\[
+$$
 \bar{F}_w = \frac{\sum_{i=1}^{n} w_i F_i}{\sum_{i=1}^{n} w_i}
-\]
+$$
 
-Here, \(F_i\) is an observed fare and \(w_i\) is its assigned weight. A higher weight means that an observation contributes more to the average. The meaning of the result depends on how the project defines those weights.
+Here, $F_i$ is an observed fare and $w_i$ is its assigned weight. A higher weight means that an observation contributes more to the average. The meaning of the result depends on how the project defines those weights.
 
 ### 3. Fixed-base price index
 
 A basic fixed-base index is:
 
-\[
+$$
 I_t = \frac{P_t}{P_0}\times 100
-\]
+$$
 
 Where:
-- \(P_t\) = comparable price in the current period
-- \(P_0\) = comparable price in the chosen base period
+- $P_t$ = comparable price in the current period
+- $P_0$ = comparable price in the chosen base period
 
 For example, if the base-period fare is ₹5,000 and the comparable current fare is ₹5,500, the index is 110. This indicates a 10% increase relative to the base period.
 
 ### 4. Percentage change
 
-\[
+$$
 \%\Delta P = \frac{P_t-P_{t-1}}{P_{t-1}}\times100
-\]
+$$
 
 For example, a change from ₹4,000 to ₹4,400 is an increase of 10%.
 
@@ -214,30 +214,30 @@ For example, a change from ₹4,000 to ₹4,400 is an increase of 10%.
 
 A general weighted aggregation of route indices can be written as:
 
-\[
+$$
 I_{\text{national},t} =
 \frac{\sum_{r=1}^{R} w_r I_{r,t}}{\sum_{r=1}^{R} w_r}
-\]
+$$
 
-Where \(I_{r,t}\) is the index for route \(r\), and \(w_r\) is that route's weight. A defensible national indicator requires documented weights, consistent route definitions, a base period, and rules for routes with missing observations.
+Where $I_{r,t}$ is the index for route $r$, and $w_r$ is that route's weight. A defensible national indicator requires documented weights, consistent route definitions, a base period, and rules for routes with missing observations.
 
 ### 6. Laspeyres, Paasche, and Fisher indices
 
 The existing project documentation describes Laspeyres and Paasche index concepts and a Fisher-index comparison in its scenario-analysis component. In general:
 
-\[
+$$
 P_L = \frac{\sum p_t q_0}{\sum p_0 q_0}\times100
-\]
+$$
 
-\[
+$$
 P_P = \frac{\sum p_t q_t}{\sum p_0 q_t}\times100
-\]
+$$
 
-\[
+$$
 P_F = \sqrt{P_L P_P}
-\]
+$$
 
-Here \(p_0\) and \(p_t\) represent base-period and current-period prices, while \(q_0\) and \(q_t\) represent base-period and current-period quantities or weights. These formulas illustrate the standard concepts; verify the project's actual implementation and available quantity/weight data before claiming that a particular result is calculated exactly this way.
+Here $p_0$ and $p_t$ represent base-period and current-period prices, while $q_0$ and $q_t$ represent base-period and current-period quantities or weights. These formulas illustrate the standard concepts; verify the project's actual implementation and available quantity/weight data before claiming that a particular result is calculated exactly this way.
 
 ## Architecture
 
